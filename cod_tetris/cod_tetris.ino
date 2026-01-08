@@ -20,6 +20,7 @@ int currentRotation;
 int score = 0;
 int highScore = 0; 
 bool gameOver = false;
+bool gameStarted = false; 
 
 const int shapes[7][4][4][2] = {
   { { {0,1},{1,1},{2,1},{3,1} }, { {2,0},{2,1},{2,2},{2,3} }, { {0,2},{1,2},{2,2},{3,2} }, { {1,0},{1,1},{1,2},{1,3} } }, // I
@@ -48,7 +49,6 @@ void spawnPiece() {
   currentRotation = 0;
   currentX = 3;
   currentY = 0;
-  
   if (!isValid(currentX, currentY, currentRotation)) {
     gameOver = true;
     Serial.println("GAMEOVER");
@@ -57,19 +57,15 @@ void spawnPiece() {
 
 void setup() {
   Serial.begin(115200); 
-  Serial1.begin(115200);
   pinMode(pinButon, INPUT_PULLUP);
   randomSeed(analogRead(A5));
 
   EEPROM.get(0, highScore);
-  
-  // Daca citim o valoare negativa punem 0 in memorie
   if (highScore < 0) {
     highScore = 0;
     EEPROM.put(0, highScore);
   }
-
-  spawnPiece();
+  
 }
 
 void lockPiece() {
@@ -79,7 +75,7 @@ void lockPiece() {
     if (py >= 0) 
       grid[py][px] = currentType + 1; 
   }
-  
+  // Partea de stergere a liniei
   for (int i = HEIGHT - 1; i >= 0; i--) {
     bool full = true;
     for (int j = 0; j < WIDTH; j++) 
@@ -96,23 +92,22 @@ void lockPiece() {
       i++; 
     }
   }
-  
   if (score > highScore) {
     highScore = score;
-    EEPROM.put(0, highScore); // Salvam noul record
+    EEPROM.put(0, highScore);
   }
-
   spawnPiece();
 }
 
 void sendDisplayData() {
   Serial.print("FRAME:");
-  
   int tempGrid[HEIGHT][WIDTH];
+  // Copiem gridul
   for(int i=0; i<HEIGHT; i++) 
     for(int j=0; j<WIDTH; j++) 
       tempGrid[i][j] = grid[i][j];
       
+  // Adaugam piesa curenta
   for (int i = 0; i < 4; i++) {
     int px = currentX + shapes[currentType][currentRotation][i][0];
     int py = currentY + shapes[currentType][currentRotation][i][1];
@@ -125,29 +120,37 @@ void sendDisplayData() {
       Serial.print(tempGrid[i][j]);
     }
   }
-  Serial.print(":"); 
-  Serial.print(score);
-  Serial.print(":");      
-  Serial.println(highScore); 
-  Serial1.print("S:");
-  Serial1.println(score);
+  Serial.print(":"); Serial.print(score);
+  Serial.print(":"); Serial.println(highScore); 
 }
 
 void loop() {
-  if (gameOver) {
-    // Resetare joc la buton
-    if (digitalRead(pinButon) == LOW) { 
-      memset(grid, 0, sizeof(grid));
-      score = 0;
+  if (!gameStarted) {
+    Serial.println("START"); 
+    
+    if (digitalRead(pinButon) == LOW) { // Apasarea joystick ului
+      gameStarted = true;
       gameOver = false;
+      score = 0;
+      memset(grid, 0, sizeof(grid)); 
       spawnPiece();
-      delay(500);
+      delay(500); 
+    }
+    delay(100); 
+    return;
+  }
+
+  if (gameOver) {
+    // La Game Over, daca apesi butonul, te intorci la l de start
+    if (digitalRead(pinButon) == LOW) { 
+      gameStarted = false; 
+      delay(1000);
     }
     return;
   }
 
   unsigned long now = millis();
-
+  
   // Control Joystick
   if (now - lastMoveTime > moveInterval) {
     int xVal = analogRead(pinX);
@@ -156,13 +159,13 @@ void loop() {
     if (xVal > 800) { 
       if (isValid(currentX - 1, currentY, currentRotation)) 
         currentX--; 
-        lastMoveTime = now; 
+      lastMoveTime = now; 
     }
     else if (xVal < 200) { 
       if (isValid(currentX + 1, currentY, currentRotation)) 
-        currentX++;  
-        lastMoveTime = now; 
-      }
+        currentX++; 
+      lastMoveTime = now; 
+    }
     
     if (yVal < 200) { 
       int newRot = (currentRotation + 1) % 4;
@@ -170,7 +173,6 @@ void loop() {
         currentRotation = newRot;
       delay(150); 
     }
-    
     if (yVal > 800) 
       dropInterval = 50; 
     else 
