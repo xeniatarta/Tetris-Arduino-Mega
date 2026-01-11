@@ -83,7 +83,7 @@ void lockPiece() {
         full = false;
     if (full) {
       score += 10;
-      for (int k = i; k > 0; k--) {
+      for (int k = i; k > 0; k--) {  // mutam cu o poz mai jos elementele de deasupra liniei
         for (int j = 0; j < WIDTH; j++) 
           grid[k][j] = grid[k-1][j];
       }
@@ -120,8 +120,10 @@ void sendDisplayData() {
       Serial.print(tempGrid[i][j]);
     }
   }
-  Serial.print(":"); Serial.print(score);
-  Serial.print(":"); Serial.println(highScore); 
+  Serial.print(":"); 
+  Serial.print(score);
+  Serial.print(":");
+  Serial.println(highScore); 
 }
 
 void loop() {
@@ -153,7 +155,7 @@ void loop() {
   
   // Control Joystick
   if (now - lastMoveTime > moveInterval) {
-    int xVal = analogRead(pinX);
+    int xVal = analogRead(pinX);  // pntru stanga dreapta 
     int yVal = analogRead(pinY);
     
     if (xVal > 800) { 
@@ -167,21 +169,25 @@ void loop() {
       lastMoveTime = now; 
     }
     
+    // daca apasam sus se roteste piesa
     if (yVal < 200) { 
       int newRot = (currentRotation + 1) % 4;
       if (isValid(currentX, currentY, newRot)) 
         currentRotation = newRot;
       delay(150); 
     }
+
+    // piesa cade mai rapid
     if (yVal > 800) 
       dropInterval = 50; 
     else 
       dropInterval = 500;
   }
  
+ // miscarea pieselor automat 
   if (now - lastDropTime > dropInterval) {
     if (isValid(currentX, currentY + 1, currentRotation)) 
-      currentY++;
+      currentY++; //la fiecare 500 ms piesa coboara un rand
     else 
       lockPiece();
     lastDropTime = now;

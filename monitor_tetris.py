@@ -120,7 +120,7 @@ while running:
 
                     draw_game(current_grid, current_score, current_high)
 
-                    # Trimitem la ESP32 
+                    # Trimitem la ESP32
                     now = time.time()
                     if ser_esp and (now - last_esp_update > 0.2):
                         if current_grid != last_sent_grid:
